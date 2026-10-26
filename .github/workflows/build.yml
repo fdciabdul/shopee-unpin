@@ -15,7 +15,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        run: |
+          chmod +x gradlew
+          CMDLINE=$(ls -d "${ANDROID_HOME}"/cmdline-tools/*/ | head -1)
+          yes | "${CMDLINE}bin/sdkmanager" --licenses > /dev/null || true
+          "${CMDLINE}bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;36.0.0"
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
       - name: Upload APK
