@@ -1,45 +1,45 @@
 # ShopeeUnpin
 
-Modul LSPosed: matiin SSL pinning di aplikasi Shopee
-(`com.shopee.id`, `com.shopee.lite.id`) biar traffic HTTPS kebaca plaintext
-di HTTPToolkit / Reqable / mitmproxy.
+LSPosed module: kills SSL pinning in the Shopee app
+(`com.shopee.id`, `com.shopee.lite.id`) so HTTPS traffic shows up in plaintext
+in HTTPToolkit / Reqable / mitmproxy.
 
-## Lapisan bypass
+## Bypass layers
 
-| # | Target | Efek |
-|---|--------|------|
-| 1 | `TrustManagerImpl.checkTrusted{,Recursive}` (Conscrypt) | Chain validation off, termasuk custom TrustManager yang delegasi ke Conscrypt |
-| 2 | `OkHostnameVerifier.verify` (OkHttp) | Hostname check selalu true |
-| 3 | `CertificatePinner.check` (OkHttp v3 + v2) | SPKI pin off |
-| 4 | `SSLContext.init` | TrustManager custom milik app diganti yang naive |
-| 5 | `WebViewClient.onReceivedSslError` | `handler.proceed()` |
+| # | Target | Effect |
+|---|--------|--------|
+| 1 | `TrustManagerImpl.checkTrusted{,Recursive}` (Conscrypt) | Disables chain validation, including custom TrustManagers that delegate to Conscrypt |
+| 2 | `OkHostnameVerifier.verify` (OkHttp) | Hostname check always true |
+| 3 | `CertificatePinner.check` (OkHttp v3 + v2) | SPKI pinning off |
+| 4 | `SSLContext.init` | Replaces app TrustManagers with a naive one |
+| 5 | `WebViewClient.onReceivedSslError` | Calls `handler.proceed()` |
 
-Semua hook best-effort: class/method yang nggak ada di ROM/app version
-tertentu di-skip + log, tidak crash.
+Every hook is best-effort: a class/method missing on a given ROM or app
+version is logged and skipped, never fatal.
 
 ## Install
 
-1. Install APK, aktifkan modul di LSPosed, centang scope
-   `com.shopee.lite.id` (dan/atau `com.shopee.id`).
+1. Install the APK, enable the module in LSPosed, tick the Shopee scope.
 2. Reboot / soft-reboot.
-3. Cek log LSPosed: harus ada `ShopeeUnpin: hooking ...`.
-4. Capture: traffic Shopee harus plaintext.
+3. Check the LSPosed log: you should see `ShopeeUnpin: hooking ...`.
+4. Capture: traffic should be plaintext.
 
-Catatan: injeksi LSPosed ke Shopee Lite di beberapa device flaky
-(daemon skip tanpa log). Kalau modul tidak ke-load di Lite, coba di
-`com.shopee.id` atau pakai scope yang sama persis.
+Note: LSPosed injection into Shopee Lite is flaky on some devices
+(the daemon silently skips it). If the module doesn't attach on Lite, try
+`com.shopee.id` or re-apply the exact same scope.
 
 ## Build
 
 ```sh
-./gradlew assembleDebug   # APK: app/build/outputs/apk/debug/
+./gradlew assembleDebug   # APK at app/build/outputs/apk/debug/
 ```
 
-Tanpa Android SDK lokal: push ke branch → GitHub Actions build otomatis,
-APK ada di Artifacts. Tag `v*` → APK nempel di GitHub Release.
+No local Android SDK? Push to a branch — GitHub Actions builds it
+automatically and attaches the APK to Artifacts. Tags like `v*` attach the
+APK to the GitHub Release.
 
-## Verifikasi hook aktif (opsional, root + Frida)
+## Verify the hooks are live (optional, rooted + Frida)
 
-Attach ke proses Shopee, `Module.enumerateExports("libssl.so")` harus ada,
-dan handshake TLS baru harus lolos MITM. Atau cukup: traffic login/API
-kelihatan plaintext di HTTPToolkit.
+Attach to the Shopee process; `Module.enumerateExports("libssl.so")` should
+resolve, and fresh TLS handshakes should MITM cleanly. Otherwise just check
+that login/API traffic shows up plaintext in HTTPToolkit.
